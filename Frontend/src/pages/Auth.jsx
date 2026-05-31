@@ -64,16 +64,53 @@ export const Login = () => {
 
 export const Register = () => {
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'student' });
+  const [error, setError] = useState('');
   const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+
+    // Front-end validations
+    if (!formData.name.trim()) {
+      setError('Name is required.');
+      return;
+    }
+
+    const emailRegex = /^\S+@\S+\.\S+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please provide a valid email address.');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (!['student', 'teacher'].includes(formData.role.toLowerCase())) {
+      setError('Please select a valid role.');
+      return;
+    }
+
+    const payload = {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      password: formData.password,
+      role: formData.role.toLowerCase()
+    };
+
+    // Print payload in browser console before sending
+    console.log('Sending registration request payload:', payload);
+
     try {
-      await register(formData);
+      await register(payload);
       navigate('/dashboard');
     } catch (err) {
-      alert('Registration failed.');
+      console.error('Registration error:', err);
+      const errMsg = err.response?.data?.message || err.message || 'Registration failed.';
+      setError(errMsg);
     }
   };
 
@@ -86,6 +123,11 @@ export const Register = () => {
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="text-red-500 bg-red-500/10 border border-red-500/20 p-3 rounded-xl text-center text-sm font-medium">
+              {error}
+            </div>
+          )}
           <div className="relative">
             <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
             <input type="text" placeholder="Full Name" required className="input-field pl-12" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
