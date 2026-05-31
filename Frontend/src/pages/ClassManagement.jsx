@@ -442,7 +442,6 @@ const ClassDetailPanel = ({ cls, onBack, onAddStudent, onRemoveStudent }) => {
 
 const ClassManagement = () => {
   const { API_URL } = useAuth();
-  const token = localStorage.getItem('token');
 
   const [classes, setClasses]           = useState([]);
   const [loading, setLoading]           = useState(true);
@@ -457,13 +456,11 @@ const ClassManagement = () => {
 
   const showToast = (message, type = 'success') => setToast({ message, type });
 
-  const headers = { Authorization: `Bearer ${token}` };
-
   // ── Fetch all classes ──────────────────────────────────────────────────────
   const fetchClasses = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/teacher/classes`, { headers });
+      const res = await axios.get(`${API_URL}/teacher/classes`);
       setClasses(res.data);
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to load classes', 'error');
@@ -476,7 +473,7 @@ const ClassManagement = () => {
 
   // ── Create class ───────────────────────────────────────────────────────────
   const handleCreate = async (data) => {
-    const res = await axios.post(`${API_URL}/teacher/classes`, data, { headers });
+    const res = await axios.post(`${API_URL}/teacher/classes`, data);
     setClasses((prev) => [res.data, ...prev]);
     showToast(`${res.data.name} – Section ${res.data.section} created!`);
   };
@@ -486,7 +483,7 @@ const ClassManagement = () => {
     const cls = classes.find((c) => c._id === classId);
     if (!window.confirm(`Delete "${cls?.name} – Section ${cls?.section}"? This cannot be undone.`)) return;
     try {
-      await axios.delete(`${API_URL}/teacher/classes/${classId}`, { headers });
+      await axios.delete(`${API_URL}/teacher/classes/${classId}`);
       setClasses((prev) => prev.filter((c) => c._id !== classId));
       if (selectedClass?._id === classId) setSelectedClass(null);
       showToast('Class deleted successfully.');
@@ -498,7 +495,7 @@ const ClassManagement = () => {
   // ── View class detail (fetch fresh with students) ──────────────────────────
   const handleView = async (cls) => {
     try {
-      const res = await axios.get(`${API_URL}/teacher/classes/${cls._id}`, { headers });
+      const res = await axios.get(`${API_URL}/teacher/classes/${cls._id}`);
       setSelectedClass(res.data);
     } catch {
       setSelectedClass(cls); // fallback to cached data
@@ -507,7 +504,7 @@ const ClassManagement = () => {
 
   // ── Add student ────────────────────────────────────────────────────────────
   const handleAddStudent = async (classId, email) => {
-    const res = await axios.post(`${API_URL}/teacher/classes/${classId}/students`, { email }, { headers });
+    const res = await axios.post(`${API_URL}/teacher/classes/${classId}/students`, { email });
     // Refresh selected class view
     setSelectedClass(res.data);
     // Update list count
@@ -518,7 +515,7 @@ const ClassManagement = () => {
   // ── Remove student ─────────────────────────────────────────────────────────
   const handleRemoveStudent = async (classId, studentId) => {
     try {
-      const res = await axios.delete(`${API_URL}/teacher/classes/${classId}/students/${studentId}`, { headers });
+      const res = await axios.delete(`${API_URL}/teacher/classes/${classId}/students/${studentId}`);
       setSelectedClass(res.data);
       setClasses((prev) => prev.map((c) => c._id === classId ? { ...c, students: res.data.students } : c));
       showToast('Student removed from class.');
