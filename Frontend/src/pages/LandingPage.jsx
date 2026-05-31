@@ -2,12 +2,11 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Brain, Target, LineChart, MessageSquare, ArrowRight, ShieldCheck } from 'lucide-react';
-import Navbar from '../components/Navbar';
 
 const LandingPage = () => {
   return (
     <div className="min-h-screen bg-dark-950 bg-gradient-premium">
-      <Navbar />
+      
       
       {/* Hero Section */}
       <section className="pt-40 pb-20 px-6">

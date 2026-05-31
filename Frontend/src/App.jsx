@@ -31,6 +31,7 @@ function AppRoutes() {
   return (
     <Router>
       <div className="bg-dark-950 min-h-screen">
+        <Navbar />
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
