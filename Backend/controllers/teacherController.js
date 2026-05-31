@@ -13,6 +13,80 @@ exports.getTeacherClasses = async (req, res) => {
   }
 };
 
+// @desc    Get teacher dashboard summary stats (live MongoDB aggregation)
+// @route   GET /api/teacher/dashboard
+exports.getTeacherDashboard = async (req, res) => {
+  try {
+    // 1. Get all classes for this teacher
+    const classes = await Class.find({ teacher: req.user._id });
+
+    // 2. Collect unique student IDs across all classes
+    const studentIdSet = new Set();
+    classes.forEach(cls => cls.students.forEach(id => studentIdSet.add(id.toString())));
+    const studentIds = [...studentIdSet];
+
+    const totalStudents = studentIds.length;
+
+    // 3. Compute average score across all student results
+    let averageScore = 0;
+    if (studentIds.length > 0) {
+      const results = await Result.find({ student: { $in: studentIds } });
+      if (results.length > 0) {
+        const totalAcc = results.reduce((acc, r) => {
+          const pct = r.totalQuestions > 0 ? (r.score / r.totalQuestions) * 100 : 0;
+          return acc + pct;
+        }, 0);
+        averageScore = parseFloat((totalAcc / results.length).toFixed(1));
+      }
+    }
+
+    // 4. Count active learning gap alerts (distinct gaps for all students)
+    const learningGapAlerts = await LearningGap.countDocuments({
+      student: { $in: studentIds }
+    });
+
+    // 5. Compute at-risk students
+    //    A student is "at risk" if:
+    //    - Their average score < 60% (low performer), OR
+    //    - They have at least one High risk LearningGap
+    let atRiskStudentIds = new Set();
+
+    if (studentIds.length > 0) {
+      // Check students with high risk gaps
+      const highRiskGaps = await LearningGap.find({
+        student: { $in: studentIds },
+        riskLevel: 'High'
+      }).select('student');
+      highRiskGaps.forEach(g => atRiskStudentIds.add(g.student.toString()));
+
+      // Check students with low average scores
+      for (const sid of studentIds) {
+        const studentResults = await Result.find({ student: sid });
+        if (studentResults.length > 0) {
+          const avg = studentResults.reduce((acc, r) =>
+            acc + (r.totalQuestions > 0 ? (r.score / r.totalQuestions) * 100 : 0), 0
+          ) / studentResults.length;
+          if (avg < 60) {
+            atRiskStudentIds.add(sid);
+          }
+        }
+      }
+    }
+
+    const atRiskStudents = atRiskStudentIds.size;
+
+    res.json({
+      totalStudents,
+      averageScore,
+      learningGapAlerts,
+      atRiskStudents
+    });
+  } catch (error) {
+    console.error('getTeacherDashboard error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Get class performance and risk analytics
 exports.getClassAnalytics = async (req, res) => {
   try {
@@ -31,7 +105,6 @@ exports.getClassAnalytics = async (req, res) => {
         : 0;
 
       // Risk Prediction System
-      // Risk Score = Low Activity + Declining Scores + High Risk Gaps
       let riskLevel = 'Low';
       const highRiskGaps = gaps.filter(g => g.riskLevel === 'High').length;
       
