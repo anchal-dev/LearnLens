@@ -1,0 +1,11 @@
+{
+  "name": "learnlens",
+  "version": "1.0.0",
+  "description": "LearnLens AI is a production-ready MERN stack application designed to help teachers identify student learning gaps using artificial intelligence. Using Google Gemini, it analyzes quiz performance to pinpoint specific conceptual weaknesses and provide personalized feedback.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
