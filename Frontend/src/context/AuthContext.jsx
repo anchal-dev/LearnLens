@@ -28,7 +28,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (userData) => {
-    const res = await axios.post(`${API_URL}/auth/register`, userData);
+    const normalizedData = {
+      ...userData,
+      role: userData.role ? userData.role.toLowerCase() : 'student'
+    };
+    console.log('AuthContext: registering user with payload:', normalizedData);
+    const res = await axios.post(`${API_URL}/auth/register`, normalizedData);
     setUser(res.data);
     localStorage.setItem('user', JSON.stringify(res.data));
     axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
