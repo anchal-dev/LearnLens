@@ -504,10 +504,9 @@ const ClassManagement = () => {
 
   // ── Add student ────────────────────────────────────────────────────────────
   const handleAddStudent = async (classId, email) => {
+    // NOTE: must throw on error so AddStudentModal catch block gets the real message
     const res = await axios.post(`${API_URL}/teacher/classes/${classId}/students`, { email });
-    // Refresh selected class view
     setSelectedClass(res.data);
-    // Update list count
     setClasses((prev) => prev.map((c) => c._id === classId ? { ...c, students: res.data.students } : c));
     showToast('Student added successfully!');
   };
@@ -564,7 +563,7 @@ const ClassManagement = () => {
           <ClassDetailPanel
             cls={selectedClass}
             onBack={() => setSelectedClass(null)}
-            onAddStudent={(cls) => setAddStudentFor(cls)}
+            onAddStudent={() => setAddStudentFor(selectedClass)}
             onRemoveStudent={handleRemoveStudent}
           />
         ) : classes.length === 0 ? (
