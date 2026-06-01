@@ -1,0 +1,16 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd c:\\\\Users\\\\SAMA\\\\Desktop\\\\LearnLens\\\\Backend ; node index\\.js$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^node test_chat\\.js$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^node -e \"\\(async\\(\\)=>\\{try\\{const api='http://localhost:5000/api';const registerRes=await fetch\\(api\\+'/auth/register',\\{method:'POST',headers:\\{'Content-Type':'application/json'\\},body:JSON\\.stringify\\(\\{name:'Test User 2',email:'testuser2\\+1@example\\.com',password:'Password1',role:'student'\\}\\)\\}\\);const registerData=await registerRes\\.json\\(\\);console\\.log\\('register',registerRes\\.status,JSON\\.stringify\\(registerData\\)\\);if\\(!registerRes\\.ok\\)\\{return;\\}const token=registerData\\.token;const putRes=await fetch\\(api\\+'/auth/class',\\{method:'PUT',headers:\\{'Content-Type':'application/json','Authorization':'Bearer '\\+token\\},body:JSON\\.stringify\\(\\{studentClass:'Class 9'\\}\\)\\}\\);const putData=await putRes\\.json\\(\\);console\\.log\\('put',putRes\\.status,JSON\\.stringify\\(putData\\)\\);\\}catch\\(err\\)\\{console\\.error\\(err\\);\\} \\}\\)\\(\\);\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

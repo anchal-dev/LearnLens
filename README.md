@@ -34,7 +34,11 @@ LearnLens AI is a production-ready MERN stack application designed to help teach
    PORT=5000
    MONGO_URI=your_mongodb_uri
    JWT_SECRET=your_jwt_secret
+   AI_PROVIDER=google
    GOOGLE_API_KEY=your_gemini_api_key
+   # OPENAI_API_KEY=your_openai_api_key
+   # OPENAI_MODEL=gpt-4.1-mini
+   # GOOGLE_MODEL=gemini-1.5-flash
    ```
 4. Run `npm start`.
 

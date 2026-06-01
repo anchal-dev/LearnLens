@@ -5,6 +5,8 @@ import {
   Users, BookOpen, AlertTriangle, Search, 
   Filter, MoreVertical, ShieldAlert, CheckCircle
 } from 'lucide-react';
+import GapHeatmap from '../components/GapHeatmap';
+import AIInterventions from '../components/AIInterventions';
 
 const TeacherDashboard = () => {
   const { API_URL } = useAuth();
@@ -63,24 +65,24 @@ const TeacherDashboard = () => {
         </div>
       </div>
 
-      {analytics && (
+      {(analytics || classes.length === 0) && (
         <>
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
             <StatCard 
               icon={<Users className="text-primary-400" />} 
               title="Total Students" 
-              value={analytics.totalStudents} 
+              value={analytics?.totalStudents || 0} 
             />
             <StatCard 
               icon={<MoreVertical className="text-rose-400" />} 
               title="At Risk" 
-              value={analytics.students.filter(s => s.riskLevel === 'High').length} 
+              value={analytics?.students ? analytics.students.filter(s => s.riskLevel === 'High').length : 0} 
             />
             <StatCard 
               icon={<CheckCircle className="text-emerald-400" />} 
               title="Class Average" 
-              value={`${(analytics.students.reduce((acc, s) => acc + parseFloat(s.avgScore), 0) / analytics.students.length || 0).toFixed(1)}%`} 
+              value={analytics?.students && analytics.students.length > 0 ? `${(analytics.students.reduce((acc, s) => acc + parseFloat(s.avgScore), 0) / analytics.students.length).toFixed(1)}%` : '0%'} 
             />
           </div>
 
@@ -109,7 +111,7 @@ const TeacherDashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-dark-800">
-                  {analytics.students.map((student, i) => (
+                  {(analytics?.students || []).map((student, i) => (
                     <tr key={i} className="hover:bg-white/5 transition-colors group">
                       <td className="px-4 py-4 flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-rose-500 flex items-center justify-center text-xs font-bold">
@@ -135,7 +137,7 @@ const TeacherDashboard = () => {
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex flex-wrap gap-2">
-                          {student.recentGaps.length > 0 ? (
+                          {(student.recentGaps && student.recentGaps.length > 0) ? (
                             student.recentGaps.flatMap(g => g.weakTopics.slice(0, 2)).map((t, j) => (
                               <span key={j} className="bg-dark-800 text-[10px] px-2 py-0.5 rounded border border-dark-700">
                                 {t}
@@ -168,6 +170,14 @@ const StatCard = ({ icon, title, value }) => (
     </div>
     <div>
       <p className="text-sm text-slate-400">{title}</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+            <div className="md:col-span-2">
+              <GapHeatmap data={(analytics?.gapHeatmap) || teacherMock.gapHeatmap} />
+            </div>
+            <div>
+              <AIInterventions items={analytics?.aiSuggestions || [{ title: 'Geometry revision', body: '18 students are struggling with Geometry. Conduct a revision session this week.' }]} />
+            </div>
+          </div>
       <p className="text-2xl font-bold">{value}</p>
     </div>
   </div>

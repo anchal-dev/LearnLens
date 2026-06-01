@@ -7,6 +7,9 @@ import StudentDashboard from './pages/StudentDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import ChatTutor from './pages/ChatTutor';
 import QuizPage from './pages/QuizPage';
+import StudyPage from './pages/StudyPage';
+import StudentClassSelection from './pages/StudentClassSelection';
+import StudentSubjectSelection from './pages/StudentSubjectSelection';
 import Navbar from './components/Navbar';
 
 const ProtectedRoute = ({ children, allowedRole }) => {
@@ -20,9 +23,12 @@ const ProtectedRoute = ({ children, allowedRole }) => {
 };
 
 const DashboardRedirect = () => {
-  const { user } = useAuth();
+  const { user, selectedSubject } = useAuth();
   if (!user) return <Navigate to="/login" />;
-  return user.role === 'teacher' ? <Navigate to="/teacher" /> : <Navigate to="/student" />;
+  if (user.role === 'teacher') return <Navigate to="/teacher" />;
+  if (!user.studentClass) return <Navigate to="/student/class" />;
+  if (!selectedSubject) return <Navigate to="/student/subjects" />;
+  return <Navigate to="/student/dashboard" />;
 };
 
 function AppRoutes() {
@@ -39,7 +45,21 @@ function AppRoutes() {
           
           <Route path="/dashboard" element={<DashboardRedirect />} />
           
-          <Route path="/student" element={
+          <Route path="/student" element={<DashboardRedirect />} />
+
+          <Route path="/student/class" element={
+            <ProtectedRoute allowedRole="student">
+              <StudentClassSelection />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/student/subjects" element={
+            <ProtectedRoute allowedRole="student">
+              <StudentSubjectSelection />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/student/dashboard" element={
             <ProtectedRoute allowedRole="student">
               <StudentDashboard />
             </ProtectedRoute>
@@ -48,6 +68,12 @@ function AppRoutes() {
           <Route path="/quiz/:id" element={
             <ProtectedRoute allowedRole="student">
               <QuizPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/student/study/:subjectId" element={
+            <ProtectedRoute allowedRole="student">
+              <StudyPage />
             </ProtectedRoute>
           } />
           
