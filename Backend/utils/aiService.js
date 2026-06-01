@@ -7,7 +7,7 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
 const analyzeLearningGaps = async (performanceData) => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `
       As an expert educational psychologist and data analyst, analyze the following student quiz performance data:
@@ -49,7 +49,7 @@ const analyzeLearningGaps = async (performanceData) => {
 
 const getTutorResponse = async (chatHistory, newUserMessage) => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     
     // Filter history for the Gemini format
     const contents = chatHistory.map(msg => ({
@@ -73,4 +73,52 @@ const getTutorResponse = async (chatHistory, newUserMessage) => {
   }
 };
 
-module.exports = { analyzeLearningGaps, getTutorResponse };
+const generateQuizQuestions = async (subject, topic, difficulty, count) => {
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    const prompt = `
+      You are an expert educator creating a diagnostic quiz for senior secondary students (Class 10–12).
+      Generate exactly ${count} multiple-choice questions on the topic "${topic}" in subject "${subject}" at "${difficulty}" difficulty.
+
+      Rules:
+      - Each question must have exactly 4 options.
+      - correctOption is a 0-based index (0, 1, 2, or 3) of the correct answer.
+      - Include a brief explanation for the correct answer.
+      - Questions must be distinct and educational.
+      - Difficulty "${difficulty}": Easy = conceptual recall, Medium = application, Hard = analysis/synthesis.
+
+      Return STRICT valid JSON only — no markdown, no extra text:
+      {
+        "questions": [
+          {
+            "questionText": "Question text here?",
+            "options": ["Option A", "Option B", "Option C", "Option D"],
+            "correctOption": 0,
+            "explanation": "Brief explanation of why Option A is correct.",
+            "topic": "${topic}"
+          }
+        ]
+      }
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text().trim();
+
+    // Strip markdown code fences if present
+    const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return parsed.questions || [];
+    }
+    throw new Error('Could not parse AI quiz response');
+  } catch (error) {
+    console.error('AI Quiz Generation Error:', error);
+    return null;
+  }
+};
+
+module.exports = { analyzeLearningGaps, getTutorResponse, generateQuizQuestions };
+

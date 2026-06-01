@@ -2,6 +2,8 @@ const User = require('../models/User');
 const Class = require('../models/Class');
 const Result = require('../models/Result');
 const LearningGap = require('../models/LearningGap');
+const Quiz = require('../models/Quiz');
+const mongoose = require('mongoose');
 
 // ─── Helper ───────────────────────────────────────────────────────────
 const genInviteCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -215,3 +217,447 @@ exports.getClassAnalytics = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ─── GET /api/teacher/dashboard/:classId ──────────────────────────────
+exports.getTeacherDashboardClass = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const classDoc = await Class.findById(classId);
+    if (!classDoc) return res.status(404).json({ message: 'Class not found' });
+
+    const totalStudents = classDoc.students.length;
+    const studentIds = classDoc.students;
+
+    const quizzes = await Quiz.find({ class: classId }).select('_id');
+    const quizIds = quizzes.map(q => q._id);
+
+    // 1. Average Class Score
+    let averageScore = 0;
+    if (quizIds.length > 0) {
+      const avgResult = await Result.aggregate([
+        { $match: { quiz: { $in: quizIds } } },
+        { $group: {
+            _id: null,
+            avgScore: { $avg: { $multiply: [ { $divide: [ "$score", "$totalQuestions" ] }, 100 ] } }
+          }
+        }
+      ]);
+      if (avgResult.length > 0) {
+        averageScore = parseFloat(avgResult[0].avgScore.toFixed(1));
+      }
+    }
+
+    // 2. Learning Gap Alerts
+    let learningGapAlerts = 0;
+    if (quizIds.length > 0) {
+      const topicGaps = await Result.aggregate([
+        { $match: { quiz: { $in: quizIds } } },
+        { $unwind: "$topicPerformance" },
+        { $group: {
+            _id: "$topicPerformance.topic",
+            totalCorrect: { $sum: "$topicPerformance.correct" },
+            totalQuestions: { $sum: "$topicPerformance.total" }
+          }
+        },
+        { $project: {
+            topic: "$_id",
+            avgAccuracy: {
+              $cond: [
+                { $eq: ["$totalQuestions", 0] },
+                0,
+                { $multiply: [ { $divide: ["$totalCorrect", "$totalQuestions"] }, 100 ] }
+              ]
+            }
+          }
+        },
+        { $match: { avgAccuracy: { $lt: 50 } } }
+      ]);
+      learningGapAlerts = topicGaps.length;
+    }
+
+    // 3. At-Risk Students
+    let atRiskStudents = 0;
+    if (studentIds.length > 0 && quizIds.length > 0) {
+      const riskAggregate = await Class.aggregate([
+        { $match: { _id: new mongoose.Types.ObjectId(classId) } },
+        { $unwind: "$students" },
+        { $lookup: {
+            from: "results",
+            let: { studentId: "$students" },
+            pipeline: [
+              { $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$student", "$$studentId"] },
+                      { $in: ["$quiz", quizIds] }
+                    ]
+                  }
+                }
+              }
+            ],
+            as: "results"
+          }
+        },
+        { $lookup: {
+            from: "learninggaps",
+            let: { studentId: "$students" },
+            pipeline: [
+              { $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$student", "$$studentId"] },
+                      { $in: ["$quiz", quizIds] }
+                    ]
+                  }
+                }
+              }
+            ],
+            as: "gaps"
+          }
+        },
+        { $project: {
+            student: "$students",
+            avgAccuracy: {
+              $cond: [
+                { $eq: [{ $size: "$results" }, 0] },
+                100,
+                { $multiply: [ { $avg: {
+                    $map: {
+                      input: "$results",
+                      as: "r",
+                      in: { $divide: ["$$r.score", "$$r.totalQuestions"] }
+                    }
+                  } }, 100 ] }
+              ]
+            },
+            highRiskGapsCount: {
+              $size: {
+                $filter: {
+                  input: "$gaps",
+                  as: "gap",
+                  cond: { $eq: ["$$gap.riskLevel", "High"] }
+                }
+              }
+            }
+          }
+        },
+        { $project: {
+            student: 1,
+            riskLevel: {
+              $cond: [
+                { $or: [ { $gt: ["$highRiskGapsCount", 1] }, { $lt: ["$avgAccuracy", 50] } ] },
+                "High",
+                { $cond: [
+                    { $or: [ { $gt: ["$highRiskGapsCount", 0] }, { $lt: ["$avgAccuracy", 70] } ] },
+                    "Medium",
+                    "Low"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        { $match: { riskLevel: { $in: ["High", "Medium"] } } }
+      ]);
+      atRiskStudents = riskAggregate.length;
+    }
+
+    res.json({
+      totalStudents,
+      averageScore,
+      learningGapAlerts,
+      atRiskStudents
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── GET /api/teacher/learning-gaps/:classId ─────────────────────────
+exports.getLearningGaps = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const quizzes = await Quiz.find({ class: classId }).select('_id');
+    const quizIds = quizzes.map(q => q._id);
+
+    if (quizIds.length === 0) {
+      return res.json([]);
+    }
+
+    const strugglingTopics = await Result.aggregate([
+      { $match: { quiz: { $in: quizIds } } },
+      { $unwind: "$topicPerformance" },
+      { $group: {
+          _id: "$topicPerformance.topic",
+          totalCorrect: { $sum: "$topicPerformance.correct" },
+          totalQuestions: { $sum: "$topicPerformance.total" },
+          strugglingStudentsCount: {
+            $sum: {
+              $cond: [ { $lt: ["$topicPerformance.accuracy", 0.6] }, 1, 0 ]
+            }
+          }
+        }
+      },
+      { $project: {
+          topic: "$_id",
+          count: "$strugglingStudentsCount",
+          avgAccuracy: {
+            $cond: [
+              { $eq: ["$totalQuestions", 0] },
+              0,
+              { $multiply: [ { $divide: ["$totalCorrect", "$totalQuestions"] }, 100 ] }
+            ]
+          }
+        }
+      },
+      { $match: { avgAccuracy: { $lt: 50 } } },
+      { $project: {
+          topic: 1,
+          count: 1,
+          severity: {
+            $cond: [ { $lt: ["$avgAccuracy", 40] }, "High", "Medium" ]
+          }
+        }
+      },
+      { $sort: { count: -1 } }
+    ]);
+
+    res.json(strugglingTopics);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── GET /api/teacher/risk-students/:classId ─────────────────────────
+exports.getRiskStudents = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const classDoc = await Class.findById(classId);
+    if (!classDoc) return res.status(404).json({ message: 'Class not found' });
+
+    const quizzes = await Quiz.find({ class: classId }).select('_id');
+    const quizIds = quizzes.map(q => q._id);
+
+    if (classDoc.students.length === 0 || quizIds.length === 0) {
+      return res.json([]);
+    }
+
+    const studentsRisk = await Class.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(classId) } },
+      { $unwind: "$students" },
+      { $lookup: {
+          from: "users",
+          localField: "students",
+          foreignField: "_id",
+          as: "studentInfo"
+        }
+      },
+      { $unwind: "$studentInfo" },
+      { $lookup: {
+          from: "results",
+          let: { studentId: "$students" },
+          pipeline: [
+            { $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$student", "$$studentId"] },
+                    { $in: ["$quiz", quizIds] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: "results"
+        }
+      },
+      { $lookup: {
+          from: "learninggaps",
+          let: { studentId: "$students" },
+          pipeline: [
+            { $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$student", "$$studentId"] },
+                    { $in: ["$quiz", quizIds] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: "gaps"
+        }
+      },
+      { $project: {
+          name: "$studentInfo.name",
+          avatar: "$studentInfo.avatar",
+          avgAccuracy: {
+            $cond: [
+              { $eq: [{ $size: "$results" }, 0] },
+              100,
+              { $multiply: [ { $avg: {
+                  $map: {
+                    input: "$results",
+                    as: "r",
+                    in: { $divide: ["$$r.score", "$$r.totalQuestions"] }
+                  }
+                } }, 100 ] }
+            ]
+          },
+          highRiskGapsCount: {
+            $size: {
+              $filter: {
+                input: "$gaps",
+                as: "gap",
+                cond: { $eq: ["$$gap.riskLevel", "High"] }
+              }
+            }
+          },
+          weakTopics: {
+            $reduce: {
+              input: "$gaps.weakTopics",
+              initialValue: [],
+              in: { $concatArrays: ["$$value", "$$this"] }
+            }
+          },
+          recommendedActions: {
+            $reduce: {
+              input: "$gaps.recommendedActions",
+              initialValue: [],
+              in: { $concatArrays: ["$$value", "$$this"] }
+            }
+          }
+        }
+      },
+      { $project: {
+          name: 1,
+          avatar: 1,
+          avgAccuracy: 1,
+          highRiskGapsCount: 1,
+          weakTopics: 1,
+          recommendedActions: 1,
+          riskLevel: {
+            $cond: [
+              { $or: [ { $gt: ["$highRiskGapsCount", 1] }, { $lt: ["$avgAccuracy", 50] } ] },
+              "High",
+              { $cond: [
+                  { $or: [ { $gt: ["$highRiskGapsCount", 0] }, { $lt: ["$avgAccuracy", 70] } ] },
+                  "Medium",
+                  "Low"
+                ]
+              }
+            ]
+          }
+        }
+      },
+      { $match: { riskLevel: { $in: ["High", "Medium"] } } }
+    ]);
+
+    const formattedRiskStudents = studentsRisk.map(s => {
+      const uniqueTopics = [...new Set(s.weakTopics)];
+      const uniqueActions = [...new Set(s.recommendedActions)];
+      
+      const gapStr = uniqueTopics.join(' & ') || 'Core Concepts';
+      const reason = s.avgAccuracy < 60 
+        ? `Average score of ${s.avgAccuracy.toFixed(1)}% across class diagnostics.` 
+        : `Frequent learning gap alerts in ${uniqueTopics.slice(0, 2).join(', ') || 'subject areas'}.`;
+      
+      const suggestion = uniqueActions.length > 0 
+        ? uniqueActions.slice(0, 2).join(' ') 
+        : 'Assign review questions and monitor progress in subsequent quizzes.';
+
+      return {
+        name: s.name,
+        riskLevel: s.riskLevel,
+        avatar: s.avatar || s.name[0],
+        reason,
+        gap: gapStr,
+        suggestion
+      };
+    });
+
+    res.json(formattedRiskStudents);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── GET /api/teacher/performance-trend/:classId ─────────────────────
+exports.getPerformanceTrend = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const quizzes = await Quiz.find({ class: classId }).sort({ createdAt: 1 });
+    const quizIds = quizzes.map(q => q._id);
+
+    if (quizIds.length === 0) {
+      return res.json({
+        trendScores: [70, 70, 70, 70, 70, 70],
+        trendLabels: ['Quiz 1', 'Quiz 2', 'Quiz 3', 'Quiz 4', 'Quiz 5', 'Quiz 6'],
+        topics: [],
+        gapScores: []
+      });
+    }
+
+    // 1. Line Chart Trend: average score per quiz
+    const trendAggregate = await Result.aggregate([
+      { $match: { quiz: { $in: quizIds } } },
+      { $group: {
+          _id: "$quiz",
+          avgScore: { $avg: { $divide: ["$score", "$totalQuestions"] } },
+          completedAt: { $min: "$completedAt" }
+        }
+      },
+      { $sort: { completedAt: 1 } },
+      { $project: {
+          avgAccuracy: { $multiply: ["$avgScore", 100] }
+        }
+      }
+    ]);
+
+    const trendScores = trendAggregate.map(t => Math.round(t.avgAccuracy));
+    const trendLabels = trendAggregate.map((t, idx) => `Quiz ${idx + 1}`);
+
+    while (trendScores.length < 6) {
+      const base = trendScores.length > 0 ? trendScores[trendScores.length - 1] : 70;
+      trendScores.push(base);
+      trendLabels.push(`Quiz ${trendScores.length}`);
+    }
+
+    // 2. Bar Chart Topic Breakdown: average accuracy per topic
+    const topicBreakdown = await Result.aggregate([
+      { $match: { quiz: { $in: quizIds } } },
+      { $unwind: "$topicPerformance" },
+      { $group: {
+          _id: "$topicPerformance.topic",
+          totalCorrect: { $sum: "$topicPerformance.correct" },
+          totalQuestions: { $sum: "$topicPerformance.total" }
+        }
+      },
+      { $project: {
+          topic: "$_id",
+          accuracy: {
+            $cond: [
+              { $eq: ["$totalQuestions", 0] },
+              0,
+              { $multiply: [ { $divide: ["$totalCorrect", "$totalQuestions"] }, 100 ] }
+            ]
+          }
+        }
+      },
+      { $sort: { accuracy: 1 } },
+      { $limit: 5 }
+    ]);
+
+    const topics = topicBreakdown.map(tb => tb.topic);
+    const gapScores = topicBreakdown.map(tb => Math.round(tb.accuracy));
+
+    res.json({
+      trendScores,
+      trendLabels,
+      topics,
+      gapScores
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+

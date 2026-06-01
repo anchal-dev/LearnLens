@@ -7,7 +7,11 @@ const {
   addStudentToClass,
   removeStudentFromClass,
   getTeacherDashboard,
-  getClassAnalytics
+  getClassAnalytics,
+  getTeacherDashboardClass,
+  getLearningGaps,
+  getRiskStudents,
+  getPerformanceTrend
 } = require('../controllers/teacherController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -28,5 +32,11 @@ router.delete('/classes/:classId/students/:studentId', protect, authorize('teach
 
 // Analytics
 router.get('/analytics/:classId', protect, authorize('teacher'), getClassAnalytics);
+
+// Production Dashboard Endpoints
+router.get('/dashboard/:classId', protect, authorize('teacher'), getTeacherDashboardClass);
+router.get('/learning-gaps/:classId', protect, authorize('teacher'), getLearningGaps);
+router.get('/risk-students/:classId', protect, authorize('teacher'), getRiskStudents);
+router.get('/performance-trend/:classId', protect, authorize('teacher'), getPerformanceTrend);
 
 module.exports = router;

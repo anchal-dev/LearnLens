@@ -6,6 +6,7 @@ import { Login, Register } from './pages/Auth';
 import StudentDashboard from './pages/StudentDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import ClassManagement from './pages/ClassManagement';
+import QuizManagement from './pages/QuizManagement';
 import ChatTutor from './pages/ChatTutor';
 import QuizPage from './pages/QuizPage';
 import Navbar from './components/Navbar';
@@ -60,6 +61,12 @@ function AppRoutes() {
           <Route path="/teacher/classes" element={
             <ProtectedRoute allowedRole="teacher">
               <ClassManagement />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/teacher/quizzes" element={
+            <ProtectedRoute allowedRole="teacher">
+              <QuizManagement />
             </ProtectedRoute>
           } />
 
