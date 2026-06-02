@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "axios": "^1.16.1",
+    "chart.js": "^4.5.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.40.0",
     "lucide-react": "^0.477.0",
+    "prop-types": "^15.8.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.16.0",

@@ -9,19 +9,21 @@ const ChatTutor = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [error, setError] = useState('');
   const scrollRef = useRef(null);
 
   useEffect(() => {
     const fetchHistory = async () => {
       try {
         const res = await axios.get(`${API_URL}/chat/history`);
-        setMessages(res.data);
+        setMessages(res.data || []);
       } catch (err) {
-        console.error(err);
+        console.error('Chat history load failed:', err);
+        setError('Unable to load previous chat history.');
       }
     };
     fetchHistory();
-  }, []);
+  }, [API_URL]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -33,13 +35,21 @@ const ChatTutor = () => {
 
     const userMessage = input;
     setInput('');
+    setError('');
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setIsTyping(true);
 
     try {
       const res = await axios.post(`${API_URL}/chat`, { message: userMessage });
-      setMessages(prev => [...prev, { role: 'model', content: res.data.response }]);
+      const payload = res.data;
+      const responseText = typeof payload === 'string'
+        ? payload
+        : payload?.response ?? payload?.message ?? payload?.text ?? 'The tutor did not return a usable answer.';
+
+      setMessages(prev => [...prev, { role: 'model', content: responseText }]);
     } catch (err) {
+      console.error('Chat send failed:', err);
+      setError('Connection error. Please try again.');
       setMessages(prev => [...prev, { role: 'model', content: 'Connection error. Please try again.' }]);
     } finally {
       setIsTyping(false);
@@ -60,18 +70,31 @@ const ChatTutor = () => {
             </p>
           </div>
         </div>
-        <button className="glass px-4 py-2 rounded-xl text-sm border-white/10 hover:bg-white/5 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setMessages([]);
+            setError('');
+          }}
+          className="glass px-4 py-2 rounded-xl text-sm border-white/10 hover:bg-white/5 flex items-center gap-2"
+        >
           <Sparkles className="text-amber-400" size={16} /> Clear Session
         </button>
       </div>
 
       <div className="flex-1 glass-card overflow-hidden flex flex-col mb-8 relative">
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {messages.length === 0 && (
+          {messages.length === 0 && !error && (
             <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
               <Bot size={64} className="mb-4 text-primary-400" />
               <h2 className="text-2xl font-bold italic">Hello! I am your AI Tutor.</h2>
               <p className="max-w-xs mt-2">Ask me anything about your current topics or request a summary of your weak concepts.</p>
+            </div>
+          )}
+
+          {error && (
+            <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-rose-200 text-sm">
+              {error}
             </div>
           )}
           
@@ -86,7 +109,7 @@ const ChatTutor = () => {
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-primary-600' : 'bg-dark-800 border border-dark-700'}`}>
                   {msg.role === 'user' ? <User size={20} /> : <Bot size={20} className="text-primary-400" />}
                 </div>
-                <div className={`max-w-[75%] p-4 rounded-2xl ${msg.role === 'user' ? 'bg-primary-600 text-white rounded-tr-none' : 'bg-dark-900 border border-dark-800 text-slate-200 rounded-tl-noneShadow-lg'}`}>
+                <div className={`max-w-[75%] p-4 rounded-2xl ${msg.role === 'user' ? 'bg-primary-600 text-white rounded-tr-none' : 'bg-dark-900 border border-dark-800 text-slate-200 rounded-tl-none shadow-lg'}`}>
                   {msg.content}
                 </div>
               </motion.div>
@@ -119,7 +142,7 @@ const ChatTutor = () => {
               placeholder="Ask a question or explain a concept..."
               className="w-full bg-dark-950 border border-dark-700 rounded-2xl pl-6 pr-14 py-4 focus:outline-none focus:border-primary-500 transition-all text-slate-200"
             />
-            <button className="absolute right-3 top-1/2 -translate-y-1/2 bg-primary-600 p-3 rounded-xl hover:bg-primary-500 transition-all text-white disabled:opacity-50" disabled={isTyping}>
+            <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 bg-primary-600 p-3 rounded-xl hover:bg-primary-500 transition-all text-white disabled:opacity-50" disabled={isTyping || !input.trim()}>
               <Send size={20} />
             </button>
           </div>
