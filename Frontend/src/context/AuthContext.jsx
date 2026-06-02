@@ -11,17 +11,40 @@ export const AuthProvider = ({ children }) => {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    const storedSubject = localStorage.getItem('selectedSubject');
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${parsedUser.token}`;
-    }
-    if (storedSubject) {
-      setSelectedSubject(JSON.parse(storedSubject));
-    }
-    setLoading(false);
+    const init = async () => {
+      const storedUser = localStorage.getItem('user');
+      const storedSubject = localStorage.getItem('selectedSubject');
+
+      if (storedUser) {
+        console.log('[AuthContext] found stored user');
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          console.log('[AuthContext] parsed user', parsedUser);
+          axios.defaults.headers.common['Authorization'] = `Bearer ${parsedUser.token}`;
+          // validate token by fetching profile
+          const res = await axios.get(`${API_URL}/auth/profile`);
+          console.log('[AuthContext] profile validated', res.data);
+          // merge server profile with token info
+          const merged = { ...res.data, token: parsedUser.token };
+          setUser(merged);
+          localStorage.setItem('user', JSON.stringify(merged));
+        } catch (err) {
+          console.warn('[AuthContext] token validation failed', err && err.message ? err.message : err);
+          // invalid or expired token - clear stored user
+          setUser(null);
+          localStorage.removeItem('user');
+          delete axios.defaults.headers.common['Authorization'];
+        }
+      }
+
+      if (storedSubject) {
+        setSelectedSubject(JSON.parse(storedSubject));
+      }
+
+      setLoading(false);
+    };
+
+    init();
   }, []);
 
   const login = async (email, password) => {

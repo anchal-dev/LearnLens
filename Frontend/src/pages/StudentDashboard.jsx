@@ -12,6 +12,7 @@ import PerformanceTrend from '../components/PerformanceTrend';
 import QuickActions from '../components/QuickActions';
 import Achievements from '../components/Achievements';
 import ProgressSummary from '../components/ProgressSummary';
+import StudySubjects from '../components/StudySubjects';
 import { 
   Plus, Brain, BookOpen, Trophy, 
   TrendingUp, AlertCircle, CheckCircle2, Clock
