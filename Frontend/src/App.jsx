@@ -5,8 +5,14 @@ import LandingPage from './pages/LandingPage';
 import { Login, Register } from './pages/Auth';
 import StudentDashboard from './pages/StudentDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
+import ClassManagement from './pages/ClassManagement';
+import QuizManagement from './pages/QuizManagement';
 import ChatTutor from './pages/ChatTutor';
 import QuizPage from './pages/QuizPage';
+import StudentQuizzes from './pages/StudentQuizzes';
+import StudyPage from './pages/StudyPage';
+import StudentClassSelection from './pages/StudentClassSelection';
+import StudentSubjectSelection from './pages/StudentSubjectSelection';
 import Navbar from './components/Navbar';
 
 const ProtectedRoute = ({ children, allowedRole }) => {
@@ -20,9 +26,12 @@ const ProtectedRoute = ({ children, allowedRole }) => {
 };
 
 const DashboardRedirect = () => {
-  const { user } = useAuth();
+  const { user, selectedSubject } = useAuth();
   if (!user) return <Navigate to="/login" />;
-  return user.role === 'teacher' ? <Navigate to="/teacher" /> : <Navigate to="/student" />;
+  if (user.role === 'teacher') return <Navigate to="/teacher" />;
+  if (!user.studentClass) return <Navigate to="/student/class" />;
+  if (!selectedSubject) return <Navigate to="/student/subjects" />;
+  return <Navigate to="/student/dashboard" />;
 };
 
 function AppRoutes() {
@@ -31,6 +40,7 @@ function AppRoutes() {
   return (
     <Router>
       <div className="bg-dark-950 min-h-screen">
+        <Navbar />
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
@@ -38,7 +48,21 @@ function AppRoutes() {
           
           <Route path="/dashboard" element={<DashboardRedirect />} />
           
-          <Route path="/student" element={
+          <Route path="/student" element={<DashboardRedirect />} />
+
+          <Route path="/student/class" element={
+            <ProtectedRoute allowedRole="student">
+              <StudentClassSelection />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/student/subjects" element={
+            <ProtectedRoute allowedRole="student">
+              <StudentSubjectSelection />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/student/dashboard" element={
             <ProtectedRoute allowedRole="student">
               <StudentDashboard />
             </ProtectedRoute>
@@ -49,10 +73,34 @@ function AppRoutes() {
               <QuizPage />
             </ProtectedRoute>
           } />
+
+          <Route path="/student/quizzes" element={
+            <ProtectedRoute allowedRole="student">
+              <StudentQuizzes />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/student/study/:subjectId" element={
+            <ProtectedRoute allowedRole="student">
+              <StudyPage />
+            </ProtectedRoute>
+          } />
           
           <Route path="/teacher" element={
             <ProtectedRoute allowedRole="teacher">
               <TeacherDashboard />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/teacher/classes" element={
+            <ProtectedRoute allowedRole="teacher">
+              <ClassManagement />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/teacher/quizzes" element={
+            <ProtectedRoute allowedRole="teacher">
+              <QuizManagement />
             </ProtectedRoute>
           } />
 
