@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { LogOut, LayoutDashboard, BrainCircuit, User as UserIcon, BookOpen, ArrowRight, Layers, ClipboardList } from 'lucide-react';
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
 
   return (
     <nav className="glass fixed top-0 w-full z-50 px-6 py-4 flex items-center justify-between border-b border-white/10">
@@ -16,7 +16,11 @@ const Navbar = () => {
       </Link>
 
       <div className="hidden md:flex items-center gap-10">
-        {user ? (
+        {loading ? (
+          <div className="flex items-center gap-8">
+            <div className="w-32 h-6 bg-dark-700/60 rounded animate-pulse" />
+          </div>
+        ) : user ? (
           <>
             <NavLink to="/student/class" className={({isActive}) => `flex items-center gap-2 hover:text-primary-400 transition-all font-medium ${isActive ? 'text-primary-500' : 'text-slate-400'}`}>
               <LayoutDashboard size={18} /> Class

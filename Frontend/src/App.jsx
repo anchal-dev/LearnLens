@@ -79,7 +79,6 @@ function AppRoutes() {
               <StudentQuizzes />
             </ProtectedRoute>
           } />
-
           <Route path="/student/study/:subjectId" element={
             <ProtectedRoute allowedRole="student">
               <StudyPage />

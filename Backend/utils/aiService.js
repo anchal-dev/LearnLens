@@ -86,7 +86,6 @@ const getTutorResponse = async (chatHistory, newUserMessage) => {
       });
       return completion.choices?.[0]?.message?.content?.trim() || 'I could not create a response. Please try again.';
     }
-
     const model = googleClient.getGenerativeModel({
       model: GOOGLE_MODEL,
       systemInstruction: tutorSystemPrompt
@@ -102,10 +101,13 @@ const getTutorResponse = async (chatHistory, newUserMessage) => {
     if (AI_PROVIDER === 'openai' && (error.code === 'insufficient_quota' || error.status === 429)) {
       if (googleClient) {
         try {
-          const model = googleClient.getGenerativeModel({ model: GOOGLE_MODEL });
+          const model = googleClient.getGenerativeModel({
+            model: GOOGLE_MODEL,
+            systemInstruction: tutorSystemPrompt
+          });
           const history = buildChatHistoryForGoogle(chatHistory || []);
           const chat = model.startChat({ history, generationConfig: { maxOutputTokens: 500 } });
-          const result = await chat.sendMessage({ author: 'user', content: [{ text: newUserMessage }] });
+          const result = await chat.sendMessage(newUserMessage);
           const response = await result.response;
           return response.text().trim();
         } catch (gErr) {
