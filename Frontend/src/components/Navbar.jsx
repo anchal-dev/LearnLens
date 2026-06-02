@@ -18,9 +18,19 @@ const Navbar = () => {
       <div className="hidden md:flex items-center gap-10">
         {user ? (
           <>
-            <NavLink to="/dashboard" className={({isActive}) => `flex items-center gap-2 hover:text-primary-400 transition-all font-medium ${isActive ? 'text-primary-500' : 'text-slate-400'}`}>
-              <LayoutDashboard size={18} /> Dashboard
+            <NavLink to="/student/class" className={({isActive}) => `flex items-center gap-2 hover:text-primary-400 transition-all font-medium ${isActive ? 'text-primary-500' : 'text-slate-400'}`}>
+              <LayoutDashboard size={18} /> Class
             </NavLink>
+            {user.role === 'student' && user.studentClass && (
+              <NavLink to="/student/subjects" className={({isActive}) => `flex items-center gap-2 hover:text-primary-400 transition-all font-medium ${isActive ? 'text-primary-500' : 'text-slate-400'}`}>
+                <BookOpen size={18} /> Subjects
+              </NavLink>
+            )}
+            {user.role === 'student' && user.studentClass && (
+              <NavLink to="/student/dashboard" className={({isActive}) => `flex items-center gap-2 hover:text-primary-400 transition-all font-medium ${isActive ? 'text-primary-500' : 'text-slate-400'}`}>
+                <BrainCircuit size={18} /> Dashboard
+              </NavLink>
+            )}
             {user.role === 'student' && (
               <NavLink to="/tutor" className={({isActive}) => `flex items-center gap-2 hover:text-primary-400 transition-all font-medium ${isActive ? 'text-primary-500' : 'text-slate-400'}`}>
                 <BrainCircuit size={18} /> AI Tutor

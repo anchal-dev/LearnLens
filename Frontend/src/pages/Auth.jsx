@@ -98,7 +98,7 @@ export const Register = () => {
       name: formData.name.trim(),
       email: formData.email.trim(),
       password: formData.password,
-      role: formData.role.toLowerCase()
+      role: formData.role.toLowerCase(),
     };
 
     // Print payload in browser console before sending
@@ -142,8 +142,8 @@ export const Register = () => {
           </div>
           
           <div className="grid grid-cols-2 gap-4">
-            <button type="button" onClick={() => setFormData({...formData, role: 'student'})} className={`py-4 rounded-xl border-2 transition-all font-bold ${formData.role === 'student' ? 'border-primary-500 bg-primary-500/10 text-white' : 'border-dark-700 text-slate-500'}`}>Student</button>
-            <button type="button" onClick={() => setFormData({...formData, role: 'teacher'})} className={`py-4 rounded-xl border-2 transition-all font-bold ${formData.role === 'teacher' ? 'border-primary-500 bg-primary-500/10 text-white' : 'border-dark-700 text-slate-500'}`}>Teacher</button>
+            <button type="button" onClick={() => setFormData({ ...formData, role: 'student' })} className={`py-4 rounded-xl border-2 transition-all font-bold ${formData.role === 'student' ? 'border-primary-500 bg-primary-500/10 text-white' : 'border-dark-700 text-slate-500'}`}>Student</button>
+            <button type="button" onClick={() => setFormData({ ...formData, role: 'teacher' })} className={`py-4 rounded-xl border-2 transition-all font-bold ${formData.role === 'teacher' ? 'border-primary-500 bg-primary-500/10 text-white' : 'border-dark-700 text-slate-500'}`}>Teacher</button>
           </div>
 
           <button type="submit" className="btn-primary w-full py-4 text-lg">Join LearnLens</button>
