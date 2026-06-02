@@ -69,6 +69,7 @@ exports.registerUser = async (req, res) => {
       });
     }
   } catch (error) {
+    console.error('Registration error in backend:', error);
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(val => val.message);
       return res.status(400).json({ message: messages.join(', ') });
